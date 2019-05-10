@@ -10,9 +10,10 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/mattn/go-isatty"
+	isatty "github.com/mattn/go-isatty"
 	"github.com/valyala/fasttemplate"
 
 	"github.com/labstack/gommon/color"
@@ -21,7 +22,7 @@ import (
 type (
 	Logger struct {
 		prefix     string
-		level      Lvl
+		level      uint32
 		skip       int
 		output     io.Writer
 		template   *fasttemplate.Template
@@ -58,7 +59,7 @@ func init() {
 
 func New(prefix string) (l *Logger) {
 	l = &Logger{
-		level:    INFO,
+		level:    uint32(INFO),
 		skip:     2,
 		prefix:   prefix,
 		template: l.newTemplate(defaultHeader),
@@ -110,11 +111,12 @@ func (l *Logger) SetPrefix(p string) {
 }
 
 func (l *Logger) Level() Lvl {
-	return l.level
+	lvl := atomic.LoadUint32(&l.level)
+	return Lvl(lvl)
 }
 
 func (l *Logger) SetLevel(v Lvl) {
-	l.level = v
+	atomic.StoreUint32(&l.level, uint32(v))
 }
 
 func (l *Logger) Output() io.Writer {
@@ -348,14 +350,16 @@ func Panicj(j JSON) {
 }
 
 func (l *Logger) log(v Lvl, format string, args ...interface{}) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-	buf := l.bufferPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	defer l.bufferPool.Put(buf)
-	_, file, line, _ := runtime.Caller(l.skip)
+	logLevel := Lvl(atomic.LoadUint32(&l.level))
 
-	if v >= l.level || v == 0 {
+	if v >= logLevel || v == 0 {
+		l.mutex.Lock()
+		defer l.mutex.Unlock()
+		buf := l.bufferPool.Get().(*bytes.Buffer)
+		buf.Reset()
+		defer l.bufferPool.Put(buf)
+		_, file, line, _ := runtime.Caller(l.skip)
+
 		message := ""
 		if format == "" {
 			message = fmt.Sprint(args...)
