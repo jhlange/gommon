@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	isatty "github.com/mattn/go-isatty"
+	"github.com/mattn/go-isatty"
 	"github.com/valyala/fasttemplate"
 
 	"github.com/labstack/gommon/color"
@@ -111,8 +111,7 @@ func (l *Logger) SetPrefix(p string) {
 }
 
 func (l *Logger) Level() Lvl {
-	lvl := atomic.LoadUint32(&l.level)
-	return Lvl(lvl)
+	return Lvl(atomic.LoadUint32(&l.level))
 }
 
 func (l *Logger) SetLevel(v Lvl) {
