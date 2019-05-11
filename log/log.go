@@ -349,7 +349,7 @@ func Panicj(j JSON) {
 }
 
 func (l *Logger) log(v Lvl, format string, args ...interface{}) {
-	logLevel := Lvl(atomic.LoadUint32(&l.level))
+	logLevel := l.Level()
 
 	if v >= logLevel || v == 0 {
 		l.mutex.Lock()
